@@ -16,12 +16,11 @@
 
 (defun lldb-extract-breakpoint-id (string)
   ;; Search for "Breakpoint created: \\([^:\n]*\\):" pattern.
-  ;(message "gud-marker-acc string is: |%s|" string)
+  ;; (message "gud-marker-acc string is: |%s|" string)
   (if (string-match "Breakpoint created: \\([^:\n]*\\):" string)
-      (progn
-        (setq gud-breakpoint-id (match-string 1 string))
-        (message "breakpoint id: %s" gud-breakpoint-id)))
-)
+    (progn
+      (setq gud-breakpoint-id (match-string 1 string))
+      (message "breakpoint id: %s" gud-breakpoint-id))))
 
 (defun gud-lldb-marker-filter (string)
   (setq gud-marker-acc
@@ -30,21 +29,21 @@
   (let (start)
     ;; Process all complete markers in this chunk
     (while (or
-            ;; (lldb) r
-            ;; Process 15408 launched: '/Volumes/data/lldb/svn/trunk/test/conditional_break/a.out' (x86_64)
-            ;; (lldb) Process 15408 stopped
-            ;; * thread #1: tid = 0x2e03, 0x0000000100000de8 a.out`c + 7 at main.c:39, stop reason = breakpoint 1.1, queue = com.apple.main-thread
-            (string-match " at \\([^:\n]*\\):\\([0-9]*\\), stop reason = .*\n"
-                          gud-marker-acc start)
-            ;; (lldb) frame select -r 1
-            ;; frame #1: 0x0000000100000e09 a.out`main + 25 at main.c:44
-            (string-match "^frame.* at \\([^:\n]*\\):\\([0-9]*\\)\n"
-                           gud-marker-acc start))
-      ;(message "gud-marker-acc matches our pattern....")
+             ;; (lldb) r
+             ;; Process 15408 launched: '/Volumes/data/lldb/svn/trunk/test/conditional_break/a.out' (x86_64)
+             ;; (lldb) Process 15408 stopped
+             ;; * thread #1: tid = 0x2e03, 0x0000000100000de8 a.out`c + 7 at main.c:39, stop reason = breakpoint 1.1, queue = com.apple.main-thread
+             (string-match " at \\([^:\n]*\\):\\([0-9]*\\), stop reason = .*\n"
+               gud-marker-acc start)
+             ;; (lldb) frame select -r 1
+             ;; frame #1: 0x0000000100000e09 a.out`main + 25 at main.c:44
+             (string-match "^frame.* at \\([^:\n]*\\):\\([0-9]*\\)\n"
+               gud-marker-acc start))
+                                        ;(message "gud-marker-acc matches our pattern....")
       (setq gud-last-frame
-            (cons (match-string 1 gud-marker-acc)
-                  (string-to-number (match-string 2 gud-marker-acc)))
-            start (match-end 0)))
+        (cons (match-string 1 gud-marker-acc)
+          (string-to-number (match-string 2 gud-marker-acc)))
+        start (match-end 0)))
 
     ;; Search for the last incomplete line in this chunk
     (while (string-match "\n" gud-marker-acc start)
