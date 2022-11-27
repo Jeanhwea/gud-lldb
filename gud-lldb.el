@@ -6,78 +6,53 @@
 ;; History of argument lists passed to lldb.
 (defvar gud-lldb-history nil)
 
-(defvar gud-lldb-marker-regexp
-  "^\\(?:\\(?:> .+?(.*?) \\)\\|\\(?: *frame #[0-9]+: .* at \\)\\)\\(.+?\\)\\:\\([0-9]+\\)")
 
-(defvar gud-lldb-marker-regexp-file-group 1)
-(defvar gud-lldb-marker-regexp-line-group 2)
+;; Keeps track of breakpoint created.  In the following case, the id is "1".
+;; It is used to implement temporary breakpoint.
+;; (lldb) b main.c:39
+;; breakpoint set --file 'main.c' --line 39
+;; Breakpoint created: 1: file ='main.c', line = 39, locations = 1
+(defvar gud-breakpoint-id nil)
 
-(defvar gud-lldb-marker-regexp-start "^-> ")
+(defun lldb-extract-breakpoint-id (string)
+  ;; Search for "Breakpoint created: \\([^:\n]*\\):" pattern.
+  ;(message "gud-marker-acc string is: |%s|" string)
+  (if (string-match "Breakpoint created: \\([^:\n]*\\):" string)
+      (progn
+        (setq gud-breakpoint-id (match-string 1 string))
+        (message "breakpoint id: %s" gud-breakpoint-id)))
+)
 
-;; Sample marker lines:
-;;     frame #0: 0x0000000100a1299c mysqld`dispatch_command(THD*, COM_DATA const*, enum_server_command) + 552 at /Users/bytedance/code/github/mysql/mysql-server/sql/sql_parse.cc:1652
-(defvar gud-lldb-marker-regexp
-  "^\\(?:\\(?:> .+?(.*?) \\)\\|\\(?:Frame [0-9]+: \\)\\)\\(.+?\\)\\:\\([0-9]+\\)")
-
-(defvar gud-lldb-marker-regexp-file-group 1)
-(defvar gud-lldb-marker-regexp-line-group 2)
-
-(defvar gud-lldb-marker-regexp-start "^> ")
-
-(defvar gud-lldb-marker-acc "")
-(make-variable-buffer-local 'gud-lldb-marker-acc)
-
-;; There's no guarantee that Emacs will hand the filter the entire
-;; marker at once; it could be broken up across several strings.  We
-;; might even receive a big chunk with several markers in it.  If we
-;; receive a chunk of text which looks like it might contain the
-;; beginning of a marker, we save it here between calls to the
-;; filter.
 (defun gud-lldb-marker-filter (string)
-  (setq gud-lldb-marker-acc (concat gud-lldb-marker-acc string))
-  (let ((output ""))
-    ;; Process all the complete markers in this chunk.
-    (while (string-match gud-lldb-marker-regexp gud-lldb-marker-acc)
-      (setq
+  (setq gud-marker-acc
+    (if gud-marker-acc (concat gud-marker-acc string) string))
+  (lldb-extract-breakpoint-id gud-marker-acc)
+  (let (start)
+    ;; Process all complete markers in this chunk
+    (while (or
+            ;; (lldb) r
+            ;; Process 15408 launched: '/Volumes/data/lldb/svn/trunk/test/conditional_break/a.out' (x86_64)
+            ;; (lldb) Process 15408 stopped
+            ;; * thread #1: tid = 0x2e03, 0x0000000100000de8 a.out`c + 7 at main.c:39, stop reason = breakpoint 1.1, queue = com.apple.main-thread
+            (string-match " at \\([^:\n]*\\):\\([0-9]*\\), stop reason = .*\n"
+                          gud-marker-acc start)
+            ;; (lldb) frame select -r 1
+            ;; frame #1: 0x0000000100000e09 a.out`main + 25 at main.c:44
+            (string-match "^frame.* at \\([^:\n]*\\):\\([0-9]*\\)\n"
+                           gud-marker-acc start))
+      ;(message "gud-marker-acc matches our pattern....")
+      (setq gud-last-frame
+            (cons (match-string 1 gud-marker-acc)
+                  (string-to-number (match-string 2 gud-marker-acc)))
+            start (match-end 0)))
 
-       ;; Extract the frame position from the marker.
-       gud-last-frame
-       (let ((file (match-string gud-lldb-marker-regexp-file-group
-                                 gud-lldb-marker-acc))
-             (line (string-to-number
-                    (match-string gud-lldb-marker-regexp-line-group
-                                  gud-lldb-marker-acc))))
-         (cons file line))
+    ;; Search for the last incomplete line in this chunk
+    (while (string-match "\n" gud-marker-acc start)
+      (setq start (match-end 0)))
 
-       ;; Output everything instead of the below
-       output (concat output (substring gud-lldb-marker-acc 0 (match-end 0)))
-       ;;	  ;; Append any text before the marker to the output we're going
-       ;;	  ;; to return - we don't include the marker in this text.
-       ;;	  output (concat output
-       ;;             (substring gud-lldb-marker-acc 0 (match-beginning 0)))
-
-       ;; Set the accumulator to the remaining text.
-       gud-lldb-marker-acc (substring gud-lldb-marker-acc (match-end 0))))
-
-    ;; Does the remaining text look like it might end with the
-    ;; beginning of another marker?  If it does, then keep it in
-    ;; gud-lldb-marker-acc until we receive the rest of it.  Since we
-    ;; know the full marker regexp above failed, it's pretty simple to
-    ;; test for marker starts.
-    (if (string-match gud-lldb-marker-regexp-start gud-lldb-marker-acc)
-        (progn
-          ;; Everything before the potential marker start can be output.
-          (setq output (concat output (substring gud-lldb-marker-acc
-                                                 0 (match-beginning 0))))
-
-          ;; Everything after, we save, to combine with later input.
-          (setq gud-lldb-marker-acc
-                (substring gud-lldb-marker-acc (match-beginning 0))))
-
-      (setq output (concat output gud-lldb-marker-acc)
-            gud-lldb-marker-acc ""))
-
-    output))
+    ;; If we have an incomplete line, store it in gud-marker-acc.
+    (setq gud-marker-acc (substring gud-marker-acc (or start 0))))
+  string)
 
 ;; Keeps track of whether the Python lldb_oneshot_break function definition has
 ;; been exec'ed.
