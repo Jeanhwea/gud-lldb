@@ -1,0 +1,13 @@
+#+TITLE: Support lldb when using gud
+#+AUTHOR: Jinghui Hu
+#+EMAIL: hujinghui@buaa.edu.cn
+#+DATE: <2022-11-27 Sun 18:36:00>
+
+
+* Introduction
+
+~M-x~ lldb
+
+* Links
+1. Original codes from [[https://opensource.apple.com/source/lldb/lldb-76/utils/emacs/gud.el]]
+2. lldb vs gdb commands https://lldb.llvm.org/use/map.html
