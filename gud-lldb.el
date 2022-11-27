@@ -44,7 +44,7 @@
         (string-match
           "^.*frame.* at \\([^:\n]*\\):\\([0-9]*\\)\n"
           gud-marker-acc start))
-      ;;(message "gud-marker-acc matches our pattern....")
+
       (setq gud-last-frame
         (cons (match-string 1 gud-marker-acc)
           (string-to-number (match-string 2 gud-marker-acc)))
@@ -56,6 +56,7 @@
 
     ;; If we have an incomplete line, store it in gud-marker-acc.
     (setq gud-marker-acc (substring gud-marker-acc (or start 0))))
+
   string)
 
 ;; Keeps track of whether the Python lldb_oneshot_break function definition has
