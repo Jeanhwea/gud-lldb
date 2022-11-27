@@ -21,10 +21,14 @@
   )
 
 (defun gud-lldb-marker-filter (string)
+  (setq string (string-replace "" "" string))
   (setq gud-marker-acc
     (if gud-marker-acc (concat gud-marker-acc string) string))
   (lldb-extract-breakpoint-id gud-marker-acc)
+
   (let (start)
+    ;; (message gud-marker-acc)
+    ;; (message "========================================")
     ;; Process all complete markers in this chunk
     (while
       (or
@@ -38,7 +42,7 @@
         ;; (lldb) frame select -r 1
         ;; frame #1: 0x0000000100000e09 a.out`main + 25 at main.c:44
         (string-match
-          "^frame.* at \\([^:\n]*\\):\\([0-9]*\\)\n"
+          "^.*frame.* at \\([^:\n]*\\):\\([0-9]*\\)\n"
           gud-marker-acc start))
       ;;(message "gud-marker-acc matches our pattern....")
       (setq gud-last-frame
